@@ -11,6 +11,14 @@ app.use(cors({
   origin: "*"
 }));
 
+/* PUBLIC VIDEO ACCESS */
+app.use(
+  "/outputs",
+  express.static(
+    path.join(__dirname, "outputs")
+  )
+);
+
 // ======================
 // CREATE FOLDERS
 // ======================
@@ -45,7 +53,7 @@ const upload = multer({
   dest: uploadDir,
 
   limits: {
-    fileSize: 100 * 1024 * 1024 // 100MB
+    fileSize: 100 * 1024 * 1024
   },
 
   fileFilter: (req, file, cb) => {
@@ -96,9 +104,12 @@ app.post(
 
     const input = req.file.path;
 
+    const fileName =
+      `compressed-${Date.now()}.mp4`;
+
     const output = path.join(
       outputDir,
-      `compressed-${Date.now()}.mp4`
+      fileName
     );
 
     console.log(
@@ -160,35 +171,31 @@ app.post(
             "Compression completed 🎉"
           );
 
-          res.download(
-            output,
-            "compressed-video.mp4",
-            () => {
+          /* DELETE INPUT ONLY */
 
-              // DELETE FILES
+          if (
+            fs.existsSync(input)
+          ) {
 
-              if (
-                fs.existsSync(input)
-              ) {
+            fs.unlinkSync(input);
 
-                fs.unlinkSync(input);
+          }
 
-              }
+          /* CREATE PUBLIC VIDEO URL */
 
-              if (
-                fs.existsSync(output)
-              ) {
+          const videoUrl =
+            `${req.protocol}://${req.get("host")}/outputs/${fileName}`;
 
-                fs.unlinkSync(output);
-
-              }
-
-              console.log(
-                "Temporary files deleted 🗑️"
-              );
-
-            }
+          console.log(
+            "Public Video URL:",
+            videoUrl
           );
+
+          /* RETURN URL */
+
+          res.json({
+            videoUrl: videoUrl
+          });
 
         }
       )
