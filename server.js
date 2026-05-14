@@ -78,7 +78,7 @@ const upload = multer({
 });  
   
 // ======================  
-// COMPRESS ROUTE (ADAPTIVE ADDED ONLY)  
+// COMPRESS ROUTE (BUBBLE READY)  
 // ======================  
   
 app.post(  
@@ -107,6 +107,7 @@ app.post(
     // ======================  
     // LOW QUALITY  
     // ======================  
+  
     ffmpeg(input)  
       .videoCodec("libx264")  
       .audioCodec("aac")  
@@ -125,6 +126,7 @@ app.post(
     // ======================  
     // MEDIUM QUALITY  
     // ======================  
+  
     ffmpeg(input)  
       .videoCodec("libx264")  
       .audioCodec("aac")  
@@ -146,6 +148,7 @@ app.post(
     // ======================  
     // HIGH QUALITY  
     // ======================  
+  
     ffmpeg(input)  
       .videoCodec("libx264")  
       .audioCodec("aac")  
@@ -171,14 +174,24 @@ app.post(
         fs.unlinkSync(input);  
       }  
   
-      const videoUrl = `${req.protocol}://${req.get("host")}/outputs/`;  
+      const baseUrl = `${req.protocol}://${req.get("host")}/outputs/`;  
   
       console.log("Adaptive compression completed 🎉");  
   
+      // ======================  
+      // BUBBLE READY RESPONSE  
+      // ======================  
+  
       res.json({  
-        low: videoUrl + `${baseName}-480p.mp4`,  
-        medium: videoUrl + `${baseName}-720p.mp4`,  
-        high: videoUrl + `${baseName}-1080p.mp4`  
+  
+        // DEFAULT FEED VIDEO  
+        videoUrl: baseUrl + `${baseName}-720p.mp4`,  
+  
+        // ALL QUALITIES  
+        low: baseUrl + `${baseName}-480p.mp4`,  
+        medium: baseUrl + `${baseName}-720p.mp4`,  
+        high: baseUrl + `${baseName}-1080p.mp4`  
+  
       });  
   
     }, 9000);  
