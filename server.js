@@ -124,16 +124,18 @@ app.post(
   
       .videoCodec("libx264")  
       .audioCodec("aac")  
-      .size("720x?")  
       .outputOptions([  
   
-        "-preset slow",  
-        "-crf 18",  
-        "-maxrate 2.5M",  
-        "-bufsize 5M",  
+        "-preset medium",  
+        "-crf 24",  
+        "-b:v 1.2M",  
+        "-maxrate 1.2M",  
+        "-bufsize 2.4M",  
         "-movflags +faststart",  
         "-pix_fmt yuv420p",  
-        "-profile:v high"  
+        "-profile:v main",  
+        "-level 3.1",  
+        "-b:a 128k"  
   
       ])  
   
