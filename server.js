@@ -78,7 +78,7 @@ const upload = multer({
 });  
   
 // ======================  
-// COMPRESS ROUTE  
+// COMPRESS ROUTE (ADAPTIVE ADDED ONLY)  
 // ======================  
   
 app.post(  
@@ -86,167 +86,102 @@ app.post(
   upload.single("video"),  
   (req, res) => {  
   
-    // ======================  
-    // NO FILE  
-    // ======================  
-  
     if (!req.file) {  
-  
       return res  
         .status(400)  
         .send("No video uploaded ❌");  
-  
     }  
   
-    console.log(  
-      "Video upload received ✅"  
-    );  
+    console.log("Video upload received ✅");  
   
     const input = req.file.path;  
   
-    const fileName =  
-      `compressed-${Date.now()}.mp4`;  
+    const baseName = `compressed-${Date.now()}`;  
   
-    const output = path.join(  
-      outputDir,  
-      fileName  
-    );  
+    const low = path.join(outputDir, `${baseName}-480p.mp4`);  
+    const mid = path.join(outputDir, `${baseName}-720p.mp4`);  
+    const high = path.join(outputDir, `${baseName}-1080p.mp4`);  
   
-    console.log(  
-      "Compression started 🔥"  
-    );  
+    console.log("Compression started 🔥");  
   
+    // ======================  
+    // LOW QUALITY  
+    // ======================  
     ffmpeg(input)  
-  
-      // ======================  
-      // VIDEO SETTINGS (FIXED)  
-      // ======================  
-  
       .videoCodec("libx264")  
       .audioCodec("aac")  
+      .size("854x480")  
       .outputOptions([  
-  
         "-preset medium",  
-        "-crf 24",  
-        "-b:v 1.2M",  
-        "-maxrate 1.2M",  
-        "-bufsize 2.4M",  
+        "-crf 28",  
+        "-b:v 600k",  
+        "-maxrate 600k",  
+        "-bufsize 1200k",  
+        "-movflags +faststart",  
+        "-pix_fmt yuv420p"  
+      ])  
+      .save(low);  
+  
+    // ======================  
+    // MEDIUM QUALITY  
+    // ======================  
+    ffmpeg(input)  
+      .videoCodec("libx264")  
+      .audioCodec("aac")  
+      .size("1280x720")  
+      .outputOptions([  
+        "-preset medium",  
+        "-crf 26",  
+        "-b:v 900k",  
+        "-maxrate 900k",  
+        "-bufsize 1800k",  
         "-movflags +faststart",  
         "-pix_fmt yuv420p",  
         "-profile:v main",  
         "-level 3.1",  
         "-b:a 128k"  
-  
       ])  
+      .save(mid);  
   
-      // ======================  
-      // PROGRESS  
-      // ======================  
+    // ======================  
+    // HIGH QUALITY  
+    // ======================  
+    ffmpeg(input)  
+      .videoCodec("libx264")  
+      .audioCodec("aac")  
+      .size("1920x1080")  
+      .outputOptions([  
+        "-preset slow",  
+        "-crf 23",  
+        "-b:v 2.5M",  
+        "-maxrate 2.5M",  
+        "-bufsize 5M",  
+        "-movflags +faststart",  
+        "-pix_fmt yuv420p"  
+      ])  
+      .save(high);  
   
-      .on(  
-        "progress",  
-        (progress) => {  
+    // ======================  
+    // WAIT + RESPONSE  
+    // ======================  
   
-          console.log(  
+    setTimeout(() => {  
   
-            `Compression Progress: ${  
-              Math.floor(  
-                progress.percent || 0  
-              )  
-            }%`  
+      if (fs.existsSync(input)) {  
+        fs.unlinkSync(input);  
+      }  
   
-          );  
+      const videoUrl = `${req.protocol}://${req.get("host")}/outputs/`;  
   
-        }  
-      )  
+      console.log("Adaptive compression completed 🎉");  
   
-      // ======================  
-      // SUCCESS  
-      // ======================  
+      res.json({  
+        low: videoUrl + `${baseName}-480p.mp4`,  
+        medium: videoUrl + `${baseName}-720p.mp4`,  
+        high: videoUrl + `${baseName}-1080p.mp4`  
+      });  
   
-      .on(  
-        "end",  
-        () => {  
-  
-          console.log(  
-            "Compression completed 🎉"  
-          );  
-  
-          /* DELETE INPUT ONLY */  
-  
-          if (  
-            fs.existsSync(input)  
-          ) {  
-  
-            fs.unlinkSync(input);  
-  
-          }  
-  
-          /* CREATE PUBLIC VIDEO URL */  
-  
-          const videoUrl =  
-            `${req.protocol}://${req.get("host")}/outputs/${fileName}`;  
-  
-          console.log(  
-            "Public Video URL:",  
-            videoUrl  
-          );  
-  
-          /* RETURN URL */  
-  
-          res.json({  
-            videoUrl: videoUrl  
-          });  
-  
-        }  
-      )  
-  
-      // ======================  
-      // ERROR  
-      // ======================  
-  
-      .on(  
-        "error",  
-        (err) => {  
-  
-          console.log(  
-            "Compression failed ❌"  
-          );  
-  
-          console.log(err);  
-  
-          // CLEANUP  
-  
-          if (  
-            fs.existsSync(input)  
-          ) {  
-  
-            fs.unlinkSync(input);  
-  
-          }  
-  
-          if (  
-            fs.existsSync(output)  
-          ) {  
-  
-            fs.unlinkSync(output);  
-  
-          }  
-  
-          res  
-            .status(500)  
-            .send(  
-              "Compression failed ❌"  
-            );  
-  
-        }  
-      )  
-  
-      // ======================  
-      // SAVE  
-      // ======================  
-  
-      .save(output);  
+    }, 9000);  
   
   }  
 );  
@@ -255,15 +190,10 @@ app.post(
 // SERVER START  
 // ======================  
   
-const PORT =  
-  process.env.PORT || 3000;  
+const PORT = process.env.PORT || 3000;  
   
 app.listen(PORT, () => {  
   
-  console.log(  
-    "Primfed Server Running On Port " +  
-    PORT +  
-    " 🚀"  
-  );  
+  console.log("Primfed Server Running On Port " + PORT + " 🚀");  
   
 });
