@@ -35,6 +35,24 @@ if (!fs.existsSync(outputDir)) {
 }  
   
 // ======================  
+// CLEAR OLD VIDEOS
+// ======================  
+  
+fs.readdirSync(outputDir).forEach((file) => {  
+  
+  const filePath = path.join(outputDir, file);  
+  
+  if (fs.existsSync(filePath)) {  
+  
+    fs.unlinkSync(filePath);  
+  
+    console.log("Deleted old file:", file);  
+  
+  }  
+  
+});  
+  
+// ======================  
 // HOME ROUTE  
 // ======================  
   
@@ -78,7 +96,7 @@ const upload = multer({
 });  
   
 // ======================  
-// COMPRESS ROUTE (BUBBLE READY)  
+// COMPRESS ROUTE (BUBBLE READY)
 // ======================  
   
 app.post(  
@@ -179,18 +197,26 @@ app.post(
       console.log("Adaptive compression completed 🎉");  
   
       // ======================  
-      // BUBBLE READY RESPONSE  
+      // REAL PUBLIC URL RESPONSE
       // ======================  
+  
+      const lowUrl = baseUrl + `${baseName}-480p.mp4`;  
+      const mediumUrl = baseUrl + `${baseName}-720p.mp4`;  
+      const highUrl = baseUrl + `${baseName}-1080p.mp4`;  
+  
+      console.log("LOW URL:", lowUrl);  
+      console.log("MEDIUM URL:", mediumUrl);  
+      console.log("HIGH URL:", highUrl);  
   
       res.json({  
   
-        // DEFAULT FEED VIDEO  
-        videoUrl: baseUrl + `${baseName}-720p.mp4`,  
+        // DEFAULT FEED VIDEO
+        videoUrl: mediumUrl,  
   
-        // ALL QUALITIES  
-        low: baseUrl + `${baseName}-480p.mp4`,  
-        medium: baseUrl + `${baseName}-720p.mp4`,  
-        high: baseUrl + `${baseName}-1080p.mp4`  
+        // REAL PUBLIC URLS
+        low: lowUrl,  
+        medium: mediumUrl,  
+        high: highUrl  
   
       });  
   
