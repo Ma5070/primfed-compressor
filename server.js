@@ -1,238 +1,268 @@
-const express = require("express");  
-const multer = require("multer");  
-const ffmpeg = require("fluent-ffmpeg");  
-const cors = require("cors");  
-const fs = require("fs");  
-const path = require("path");  
-  
-const app = express();  
-  
-app.use(cors({  
-  origin: "*"  
-}));  
-  
-/* PUBLIC VIDEO ACCESS */  
-app.use(  
-  "/outputs",  
-  express.static(  
-    path.join(__dirname, "outputs")  
-  )  
-);  
-  
-// ======================  
-// CREATE FOLDERS  
-// ======================  
-  
-const uploadDir = path.join(__dirname, "uploads");  
-const outputDir = path.join(__dirname, "outputs");  
-  
-if (!fs.existsSync(uploadDir)) {  
-  fs.mkdirSync(uploadDir);  
-}  
-  
-if (!fs.existsSync(outputDir)) {  
-  fs.mkdirSync(outputDir);  
-}  
-  
-// ======================  
-// CLEAR OLD VIDEOS
-// ======================  
-  
-fs.readdirSync(outputDir).forEach((file) => {  
-  
-  const filePath = path.join(outputDir, file);  
-  
-  if (fs.existsSync(filePath)) {  
-  
-    fs.unlinkSync(filePath);  
-  
-    console.log("Deleted old file:", file);  
-  
-  }  
-  
-});  
-  
-// ======================  
-// HOME ROUTE  
-// ======================  
-  
-app.get("/", (req, res) => {  
-  
-  res.send("Primfed Compressor Running ✅");  
-  
-});  
-  
-// ======================  
-// MULTER SETUP  
-// ======================  
-  
-const upload = multer({  
-  
-  dest: uploadDir,  
-  
-  limits: {  
-    fileSize: 100 * 1024 * 1024  
-  },  
-  
-  fileFilter: (req, file, cb) => {  
-  
-    if (  
-      file.mimetype.startsWith("video/")  
-    ) {  
-  
-      cb(null, true);  
-  
-    } else {  
-  
-      cb(  
-        new Error("Only videos allowed ❌"),  
-        false  
-      );  
-  
-    }  
-  
-  }  
-  
-});  
-  
-// ======================  
-// COMPRESS ROUTE (BUBBLE READY)
-// ======================  
-  
-app.post(  
-  "/compress",  
-  upload.single("video"),  
-  (req, res) => {  
-  
-    if (!req.file) {  
-      return res  
-        .status(400)  
-        .send("No video uploaded ❌");  
-    }  
-  
-    console.log("Video upload received ✅");  
-  
-    const input = req.file.path;  
-  
-    const baseName = `compressed-${Date.now()}`;  
-  
-    const low = path.join(outputDir, `${baseName}-480p.mp4`);  
-    const mid = path.join(outputDir, `${baseName}-720p.mp4`);  
-    const high = path.join(outputDir, `${baseName}-1080p.mp4`);  
-  
-    console.log("Compression started 🔥");  
-  
-    // ======================  
-    // LOW QUALITY  
-    // ======================  
-  
-    ffmpeg(input)  
-      .videoCodec("libx264")  
-      .audioCodec("aac")  
-      .size("854x480")  
-      .outputOptions([  
-        "-preset medium",  
-        "-crf 28",  
-        "-b:v 600k",  
-        "-maxrate 600k",  
-        "-bufsize 1200k",  
-        "-movflags +faststart",  
-        "-pix_fmt yuv420p"  
-      ])  
-      .save(low);  
-  
-    // ======================  
-    // MEDIUM QUALITY  
-    // ======================  
-  
-    ffmpeg(input)  
-      .videoCodec("libx264")  
-      .audioCodec("aac")  
-      .size("1280x720")  
-      .outputOptions([  
-        "-preset medium",  
-        "-crf 26",  
-        "-b:v 900k",  
-        "-maxrate 900k",  
-        "-bufsize 1800k",  
-        "-movflags +faststart",  
-        "-pix_fmt yuv420p",  
-        "-profile:v main",  
-        "-level 3.1",  
-        "-b:a 128k"  
-      ])  
-      .save(mid);  
-  
-    // ======================  
-    // HIGH QUALITY  
-    // ======================  
-  
-    ffmpeg(input)  
-      .videoCodec("libx264")  
-      .audioCodec("aac")  
-      .size("1920x1080")  
-      .outputOptions([  
-        "-preset slow",  
-        "-crf 23",  
-        "-b:v 2.5M",  
-        "-maxrate 2.5M",  
-        "-bufsize 5M",  
-        "-movflags +faststart",  
-        "-pix_fmt yuv420p"  
-      ])  
-      .save(high);  
-  
-    // ======================  
-    // WAIT + RESPONSE  
-    // ======================  
-  
-    setTimeout(() => {  
-  
-      if (fs.existsSync(input)) {  
-        fs.unlinkSync(input);  
-      }  
-  
-      const baseUrl = `${req.protocol}://${req.get("host")}/outputs/`;  
-  
-      console.log("Adaptive compression completed 🎉");  
-  
-      // ======================  
-      // REAL PUBLIC URL RESPONSE
-      // ======================  
-  
-      const lowUrl = baseUrl + `${baseName}-480p.mp4`;  
-      const mediumUrl = baseUrl + `${baseName}-720p.mp4`;  
-      const highUrl = baseUrl + `${baseName}-1080p.mp4`;  
-  
-      console.log("LOW URL:", lowUrl);  
-      console.log("MEDIUM URL:", mediumUrl);  
-      console.log("HIGH URL:", highUrl);  
-  
-      res.json({  
-  
-        // DEFAULT FEED VIDEO
-        videoUrl: mediumUrl,  
-  
-        // REAL PUBLIC URLS
-        low: lowUrl,  
-        medium: mediumUrl,  
-        high: highUrl  
-  
-      });  
-  
-    }, 9000);  
-  
-  }  
-);  
-  
-// ======================  
-// SERVER START  
-// ======================  
-  
-const PORT = process.env.PORT || 3000;  
-  
-app.listen(PORT, () => {  
-  
-  console.log("Primfed Server Running On Port " + PORT + " 🚀");  
-  
+const express = require("express");
+const multer = require("multer");
+const ffmpeg = require("fluent-ffmpeg");
+const cors = require("cors");
+const fs = require("fs");
+const path = require("path");
+
+const app = express();
+
+app.use(cors({
+origin: "*"
+}));
+
+/* PUBLIC VIDEO ACCESS */
+app.use(
+"/outputs",
+express.static(
+path.join(__dirname, "outputs")
+)
+);
+
+// ======================
+// CREATE FOLDERS
+// ======================
+
+const uploadDir = path.join(__dirname, "uploads");
+const outputDir = path.join(__dirname, "outputs");
+
+if (!fs.existsSync(uploadDir)) {
+fs.mkdirSync(uploadDir);
+}
+
+if (!fs.existsSync(outputDir)) {
+fs.mkdirSync(outputDir);
+}
+
+// ======================
+// HOME ROUTE
+// ======================
+
+app.get("/", (req, res) => {
+
+res.send("Primfed Compressor Running ✅");
+
+});
+
+// ======================
+// MULTER SETUP
+// ======================
+
+const upload = multer({
+
+dest: uploadDir,
+
+limits: {
+fileSize: 100 * 1024 * 1024
+},
+
+fileFilter: (req, file, cb) => {
+
+if (    
+  file.mimetype.startsWith("video/")    
+) {    
+
+  cb(null, true);    
+
+} else {    
+
+  cb(    
+    new Error("Only videos allowed ❌"),    
+    false    
+  );    
+
+}
+
+}
+
+});
+
+// ======================
+// COMPRESS ROUTE
+// ======================
+
+app.post(
+"/compress",
+upload.single("video"),
+(req, res) => {
+
+// ======================    
+// NO FILE    
+// ======================    
+
+if (!req.file) {    
+
+  return res    
+    .status(400)    
+    .send("No video uploaded ❌");    
+
+}    
+
+console.log(    
+  "Video upload received ✅"    
+);    
+
+const input = req.file.path;    
+
+const fileName =    
+  `compressed-${Date.now()}.mp4`;    
+
+const output = path.join(    
+  outputDir,    
+  fileName    
+);    
+
+console.log(    
+  "Compression started 🔥"    
+);    
+
+ffmpeg(input)    
+
+  // ======================    
+  // VIDEO SETTINGS    
+  // ======================    
+
+  .videoCodec("libx264")    
+
+  .audioCodec("aac")    
+
+  .size("720x?")    
+
+  .outputOptions([    
+
+    "-preset veryfast",    
+
+    "-crf 32",    
+
+    "-movflags +faststart"    
+
+  ])    
+
+  // ======================    
+  // PROGRESS    
+  // ======================    
+
+  .on(    
+    "progress",    
+    (progress) => {    
+
+      console.log(    
+
+        `Compression Progress: ${    
+          Math.floor(    
+            progress.percent || 0    
+          )    
+        }%`    
+
+      );    
+
+    }    
+  )    
+
+  // ======================    
+  // SUCCESS    
+  // ======================    
+
+  .on(    
+    "end",    
+    () => {    
+
+      console.log(    
+        "Compression completed 🎉"    
+      );    
+
+      /* DELETE INPUT ONLY */    
+
+      if (    
+        fs.existsSync(input)    
+      ) {    
+
+        fs.unlinkSync(input);    
+
+      }    
+
+      /* CREATE PUBLIC VIDEO URL */    
+
+      const videoUrl =    
+        `${req.protocol}://${req.get("host")}/outputs/${fileName}`;    
+
+      console.log(    
+        "Public Video URL:",    
+        videoUrl    
+      );    
+
+      /* RETURN URL */    
+
+      res.json({    
+        videoUrl: videoUrl    
+      });    
+
+    }    
+  )    
+
+  // ======================    
+  // ERROR    
+  // ======================    
+
+  .on(    
+    "error",    
+    (err) => {    
+
+      console.log(    
+        "Compression failed ❌"    
+      );    
+
+      console.log(err);    
+
+      // CLEANUP    
+
+      if (    
+        fs.existsSync(input)    
+      ) {    
+
+        fs.unlinkSync(input);    
+
+      }    
+
+      if (    
+        fs.existsSync(output)    
+      ) {    
+
+        fs.unlinkSync(output);    
+
+      }    
+
+      res    
+        .status(500)    
+        .send(    
+          "Compression failed ❌"    
+        );    
+
+    }    
+  )    
+
+  // ======================    
+  // SAVE    
+  // ======================    
+
+  .save(output);
+
+}
+);
+
+// ======================
+// SERVER START
+// ======================
+
+const PORT =
+process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+
+console.log(
+"Primfed Server Running On Port " +
+PORT +
+" 🚀"
+);
+
 });
