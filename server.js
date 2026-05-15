@@ -132,7 +132,7 @@ ffmpeg(input)
 
     "-preset veryfast",    
 
-    "-crf 28",    
+    "-crf 30",    
 
     "-movflags +faststart"    
 
