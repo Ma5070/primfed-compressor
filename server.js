@@ -85,7 +85,7 @@ app.post("/compress", upload.single("video"), (req, res) => {
     .outputOptions([
 
       "-preset veryfast",
-      "-crf 30",
+      "-crf 29",
 
       "-b:a 96k",
 
